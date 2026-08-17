@@ -1,0 +1,507 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MandalStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum MandalRole {
+  ADMIN
+  TREASURER
+  VOLUNTEER
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  OTHER
+}
+
+enum ReceiptStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PendingCollectionStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+enum BillingPeriod {
+  FESTIVAL
+  YEARLY
+}
+
+enum NotificationChannel {
+  IN_APP
+  WHATSAPP
+  SMS
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ReceiptTemplateSlug {
+  TRADITIONAL
+  MODERN
+  PREMIUM
+}
+
+model User {
+  id                 String    @id @default(uuid()) @db.Uuid
+  email              String?   @unique
+  mobile             String?   @unique
+  passwordHash       String
+  name               String
+  language           String    @default("mr")
+  isSuperAdmin       Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  memberships              MandalMember[]
+  createdReceipts          Receipt[]            @relation("ReceiptCreatedBy")
+  cancelledReceipts        Receipt[]            @relation("ReceiptCancelledBy")
+  createdExpenses          Expense[]            @relation("ExpenseCreatedBy")
+  assignedCollections      PendingCollection[]  @relation("PendingAssignedTo")
+  createdPending           PendingCollection[]  @relation("PendingCreatedBy")
+  auditLogs                AuditLog[]
+  notifications            Notification[]
+  createdMandals           Mandal[]             @relation("MandalCreatedBy")
+
+  @@index([mobile])
+  @@index([email])
+  @@map("users")
+}
+
+model Mandal {
+  id                   String       @id @default(uuid()) @db.Uuid
+  name                 String
+  slug                 String       @unique
+  ganpatiYear          Int
+  address              String?
+  city                 String?
+  district             String?
+  taluka               String?
+  pinCode              String?
+  mobile               String?
+  email                String?
+  logoUrl              String?
+  ganpatiPhotoUrl      String?
+  status               MandalStatus @default(TRIAL)
+  onboardingCompleted  Boolean      @default(false)
+  createdById          String?      @db.Uuid
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  createdBy            User?        @relation("MandalCreatedBy", fields: [createdById], references: [id])
+  festivals            Festival[]
+  members              MandalMember[]
+  donors               Donor[]
+  receipts             Receipt[]
+  expenses             Expense[]
+  expenseCategories    ExpenseCategory[]
+  pendingCollections   PendingCollection[]
+  subscription         Subscription?
+  settings             MandalSettings?
+  publicPage           PublicPage?
+  usageRecords         UsageRecord[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  payments             Payment[]
+
+  @@index([status])
+  @@index([ganpatiYear])
+  @@map("mandals")
+}
+
+model Festival {
+  id        String   @id @default(uuid()) @db.Uuid
+  mandalId  String   @db.Uuid
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  year      Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mandal    Mandal   @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  receipts  Receipt[]
+  expenses  Expense[]
+  usageRecords UsageRecord[]
+  pendingCollections PendingCollection[]
+
+  @@index([mandalId, isActive])
+  @@index([mandalId, year])
+  @@map("festivals")
+}
+
+model MandalMember {
+  id        String     @id @default(uuid()) @db.Uuid
+  mandalId  String     @db.Uuid
+  userId    String     @db.Uuid
+  role      MandalRole
+  isActive  Boolean    @default(true)
+  invitedAt DateTime   @default(now())
+  joinedAt  DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  mandal    Mandal     @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([mandalId, userId])
+  @@index([userId])
+  @@index([mandalId, role, isActive])
+  @@map("mandal_members")
+}
+
+model MandalSettings {
+  id                   String              @id @default(uuid()) @db.Uuid
+  mandalId             String              @unique @db.Uuid
+  receiptPrefix        String              @default("GM")
+  nextReceiptNumber    Int                 @default(1)
+  receiptTemplate      ReceiptTemplateSlug @default(TRADITIONAL)
+  authorizedSignatory  String?
+  treasurerName        String?
+  footerMessage        String?
+  showPublicFinancials Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  mandal               Mandal              @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+
+  @@map("mandal_settings")
+}
+
+model Donor {
+  id          String    @id @default(uuid()) @db.Uuid
+  mandalId    String    @db.Uuid
+  fullName    String
+  mobile      String
+  address     String?
+  area        String?
+  city        String?
+  notes       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  mandal      Mandal    @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  receipts    Receipt[]
+  pendingCollections PendingCollection[]
+
+  @@unique([mandalId, mobile])
+  @@index([mandalId, fullName])
+  @@index([mandalId, area])
+  @@index([mandalId, isActive])
+  @@map("donors")
+}
+
+model Receipt {
+  id                 String        @id @default(uuid()) @db.Uuid
+  mandalId           String        @db.Uuid
+  festivalId         String        @db.Uuid
+  donorId            String        @db.Uuid
+  createdById        String        @db.Uuid
+  receiptNumber      String
+  verificationToken  String        @unique
+  amount             Decimal       @db.Decimal(14, 2)
+  amountInWordsMr    String
+  amountInWordsEn    String
+  paymentMethod      PaymentMethod
+  transactionId      String?
+  chequeNumber       String?
+  notes              String?
+  status             ReceiptStatus @default(ACTIVE)
+  pdfUrl             String?
+  receiptDate        DateTime      @default(now())
+  cancelledAt        DateTime?
+  cancelledById      String?       @db.Uuid
+  cancellationReason String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  mandal             Mandal        @relation(fields: [mandalId], references: [id], onDelete: Restrict)
+  festival           Festival      @relation(fields: [festivalId], references: [id], onDelete: Restrict)
+  donor              Donor         @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  createdBy          User          @relation("ReceiptCreatedBy", fields: [createdById], references: [id])
+  cancelledBy        User?         @relation("ReceiptCancelledBy", fields: [cancelledById], references: [id])
+  payments           Payment[]
+
+  @@unique([mandalId, receiptNumber])
+  @@index([mandalId, status])
+  @@index([mandalId, receiptDate])
+  @@index([mandalId, createdById])
+  @@index([mandalId, paymentMethod])
+  @@index([festivalId, status])
+  @@index([donorId])
+  @@index([verificationToken])
+  @@index([transactionId])
+  @@map("receipts")
+}
+
+model Payment {
+  id            String        @id @default(uuid()) @db.Uuid
+  receiptId     String        @db.Uuid
+  mandalId      String        @db.Uuid
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod
+  transactionId String?
+  chequeNumber  String?
+  paidAt        DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  receipt       Receipt       @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  mandal        Mandal        @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+
+  @@index([mandalId, method])
+  @@index([receiptId])
+  @@map("payments")
+}
+
+model ExpenseCategory {
+  id        String    @id @default(uuid()) @db.Uuid
+  mandalId  String    @db.Uuid
+  slug      String
+  nameEn    String
+  nameMr    String
+  isDefault Boolean   @default(false)
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  mandal    Mandal    @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  expenses  Expense[]
+
+  @@unique([mandalId, slug])
+  @@index([mandalId, isActive, sortOrder])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id            String        @id @default(uuid()) @db.Uuid
+  mandalId      String        @db.Uuid
+  festivalId    String        @db.Uuid
+  categoryId    String        @db.Uuid
+  createdById   String        @db.Uuid
+  title         String
+  amount        Decimal       @db.Decimal(14, 2)
+  expenseDate   DateTime
+  paymentMethod PaymentMethod
+  vendor        String?
+  notes         String?
+  billUrl       String?
+  status        ExpenseStatus @default(APPROVED)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  mandal        Mandal        @relation(fields: [mandalId], references: [id], onDelete: Restrict)
+  festival      Festival      @relation(fields: [festivalId], references: [id], onDelete: Restrict)
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy     User          @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+
+  @@index([mandalId, status, deletedAt])
+  @@index([mandalId, expenseDate])
+  @@index([festivalId, status])
+  @@index([categoryId])
+  @@map("expenses")
+}
+
+model PendingCollection {
+  id               String                   @id @default(uuid()) @db.Uuid
+  mandalId         String                   @db.Uuid
+  festivalId       String                   @db.Uuid
+  donorId          String                   @db.Uuid
+  assignedToId     String?                  @db.Uuid
+  createdById      String                   @db.Uuid
+  expectedAmount   Decimal                  @db.Decimal(14, 2)
+  collectedAmount  Decimal                  @default(0) @db.Decimal(14, 2)
+  dueDate          DateTime?
+  notes            String?
+  status           PendingCollectionStatus  @default(PENDING)
+  collectedReceiptId String?                @db.Uuid
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  mandal           Mandal                   @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  festival         Festival                 @relation(fields: [festivalId], references: [id], onDelete: Cascade)
+  donor            Donor                    @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  assignedTo       User?                    @relation("PendingAssignedTo", fields: [assignedToId], references: [id])
+  createdBy        User                     @relation("PendingCreatedBy", fields: [createdById], references: [id])
+
+  @@index([mandalId, status])
+  @@index([mandalId, assignedToId])
+  @@index([donorId])
+  @@map("pending_collections")
+}
+
+model ReceiptTemplate {
+  id        String              @id @default(uuid()) @db.Uuid
+  slug      ReceiptTemplateSlug @unique
+  nameEn    String
+  nameMr    String
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@map("receipt_templates")
+}
+
+model SubscriptionPlan {
+  id             String        @id @default(uuid()) @db.Uuid
+  slug           String        @unique
+  nameEn         String
+  nameMr         String
+  price          Decimal       @db.Decimal(10, 2)
+  billingPeriod  BillingPeriod @default(FESTIVAL)
+  receiptLimit   Int?
+  volunteerLimit Int?
+  features       Json
+  isActive       Boolean       @default(true)
+  sortOrder      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  subscriptions  Subscription[]
+
+  @@index([isActive, sortOrder])
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id          String             @id @default(uuid()) @db.Uuid
+  mandalId    String             @unique @db.Uuid
+  planId      String             @db.Uuid
+  status      SubscriptionStatus @default(TRIAL)
+  startedAt   DateTime           @default(now())
+  expiresAt   DateTime?
+  trialEndsAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  mandal      Mandal             @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  plan        SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+model UsageRecord {
+  id             String    @id @default(uuid()) @db.Uuid
+  mandalId       String    @db.Uuid
+  festivalId     String?   @db.Uuid
+  receiptCount   Int       @default(0)
+  volunteerCount Int       @default(0)
+  periodStart    DateTime
+  periodEnd      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  mandal         Mandal    @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  festival       Festival? @relation(fields: [festivalId], references: [id], onDelete: SetNull)
+
+  @@unique([mandalId, festivalId])
+  @@index([mandalId])
+  @@map("usage_records")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  mandalId  String?  @db.Uuid
+  userId    String?  @db.Uuid
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  mandal    Mandal?  @relation(fields: [mandalId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([mandalId, createdAt])
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model PublicPage {
+  id                   String   @id @default(uuid()) @db.Uuid
+  mandalId             String   @unique @db.Uuid
+  slug                 String   @unique
+  isEnabled            Boolean  @default(false)
+  showFinancialSummary Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  mandal               Mandal   @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+
+  @@map("public_pages")
+}
+
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  mandalId  String?             @db.Uuid
+  userId    String?             @db.Uuid
+  channel   NotificationChannel @default(IN_APP)
+  type      String
+  payload   Json
+  status    NotificationStatus  @default(PENDING)
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime            @default(now())
+
+  mandal    Mandal?             @relation(fields: [mandalId], references: [id], onDelete: Cascade)
+  user      User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([mandalId, createdAt])
+  @@map("notifications")
+}
+
+model Setting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
