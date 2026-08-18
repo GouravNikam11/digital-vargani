@@ -1,24 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Digital Vargani
+
+Ganpati mandal app for vargani (collections), receipts, expenses, and accounts.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set `AUTH_SECRET` in `.env` to a random string of at least 32 characters.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Database: Supabase (recommended) or local Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Supabase:** in the dashboard go to **Project Settings → Database → Connect**, copy the URI strings, and put them in `.env`:
+
+- `DATABASE_URL` — Transaction pooler (port `6543`) plus `?sslmode=require&pgbouncer=true`
+- `DIRECT_URL` — Session pooler (port `5432`) plus `?sslmode=require`
+
+**Local Docker:** leave the default URLs in `.env` and run:
+
+```bash
+docker compose up -d
+```
+
+Then apply schema and demo data, and start the app:
+
+```bash
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Seeded password is `Vargani@2026` (admin mobile `9876543210`).
 
 ## Learn More
 

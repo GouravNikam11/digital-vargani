@@ -1,19 +1,18 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { hash } from "bcryptjs";
 import { nanoid } from "nanoid";
 import { DEFAULT_EXPENSE_CATEGORIES, PLAN_SLUGS } from "../src/config/constants";
 import { formatReceiptNumber } from "../src/lib/receipt-number";
 import { amountInWordsEn, amountInWordsMr } from "../src/lib/amount-in-words";
+import { createPrismaAdapter, getCliDatabaseUrl } from "../src/lib/prisma-pg";
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString = getCliDatabaseUrl();
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not set. Check your .env file.");
+  throw new Error("DIRECT_URL or DATABASE_URL is not set. Check your .env file.");
 }
 
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient({ adapter: createPrismaAdapter(connectionString) });
 
 const PASSWORD = "Vargani@2026";
 
