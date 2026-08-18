@@ -19,7 +19,11 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar mandalName={session.mandalName ?? t("app.name")} isSuperAdmin={session.isSuperAdmin} />
+      <Sidebar
+        mandalName={session.mandalName ?? t("app.name")}
+        isSuperAdmin={session.isSuperAdmin}
+        role={session.role}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:hidden">
           <div>
@@ -36,7 +40,7 @@ export function AppShell({
         >
           <Plus className="h-7 w-7" />
         </Link>
-        <BottomNav />
+        <BottomNav role={session.role} />
       </div>
     </div>
   );

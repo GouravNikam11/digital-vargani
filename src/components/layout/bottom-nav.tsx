@@ -2,21 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Receipt, Users, Wallet, Menu } from "lucide-react";
+import { Home, Receipt, Users, Wallet, Menu, ClipboardList } from "lucide-react";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
+import { can, type MandalRole } from "@/lib/permissions";
 
-const items = [
-  { href: "/dashboard", key: "nav.home", icon: Home },
-  { href: "/receipts", key: "nav.receipts", icon: Receipt },
-  { href: "/donors", key: "nav.donors", icon: Users },
-  { href: "/expenses", key: "nav.accounts", icon: Wallet },
-  { href: "/more", key: "nav.more", icon: Menu },
-] as const;
-
-export function BottomNav() {
+export function BottomNav({ role }: { role: MandalRole | null }) {
   const pathname = usePathname();
   const { t } = useT();
+  const accountsItem = can(role, "expenses", "view")
+    ? { href: "/expenses", key: "nav.accounts", icon: Wallet }
+    : { href: "/pending", key: "nav.pending", icon: ClipboardList };
+  const items = [
+    { href: "/dashboard", key: "nav.home", icon: Home },
+    { href: "/receipts", key: "nav.receipts", icon: Receipt },
+    { href: "/donors", key: "nav.donors", icon: Users },
+    accountsItem,
+    { href: "/more", key: "nav.more", icon: Menu },
+  ] as const;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">

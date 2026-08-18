@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { AppError, ErrorCodes } from "@/lib/errors";
 import { SESSION_COOKIE, verifySession, type SessionPayload } from "@/lib/auth/session";
@@ -47,7 +48,7 @@ export async function requireMandalContext() {
 export async function requirePermission(module: PermissionModule, action: string) {
   const context = await requireMandalContext();
   if (!can(context.role, module, action)) {
-    throw new AppError(ErrorCodes.FORBIDDEN, 403);
+    redirect("/dashboard");
   }
   return context;
 }

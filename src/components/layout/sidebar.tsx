@@ -7,28 +7,21 @@ import { logoutAction } from "@/actions/auth";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-const links = [
-  { href: "/dashboard", key: "nav.dashboard" },
-  { href: "/receipts", key: "nav.receipts" },
-  { href: "/donors", key: "nav.donors" },
-  { href: "/expenses", key: "nav.expenses" },
-  { href: "/pending", key: "nav.pending" },
-  { href: "/reports", key: "nav.reports" },
-  { href: "/volunteers", key: "nav.volunteers" },
-  { href: "/settings", key: "nav.settings" },
-  { href: "/subscription", key: "nav.subscription" },
-];
+import { visibleSidebarLinks } from "@/config/nav";
+import type { MandalRole } from "@/lib/permissions";
 
 export function Sidebar({
   mandalName,
   isSuperAdmin,
+  role,
 }: {
   mandalName: string;
   isSuperAdmin: boolean;
+  role: MandalRole | null;
 }) {
   const pathname = usePathname();
   const { t } = useT();
+  const links = visibleSidebarLinks(role);
 
   return (
     <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-white md:flex">
